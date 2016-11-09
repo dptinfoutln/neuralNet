@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import matplotlib.pyplot as plt
 import numpy as np
+from functools import reduce
 
 entrees = np.matrix((((0,0),0),((0,1),1),((1,0),1),((1,1),0)))
 lr=0.1
@@ -16,21 +17,19 @@ def derivRelu(v):
 	return v
 
 
-def stepDecrease(x):
-	i=0
+def stepDecrease(x,y):
+	val=x
 	while True:
-		yield x**i
-		i+=1
+		yield val*y
 
-config =(2,3,1)
+config =(2,5,1)
 
 class NLayer:
 	def __init__(self,entries,activation,seuilIter,stepGenerator=stepDecrease):
 		self.entries = entries
 		self.activation = activation
 		(self.seuil,self.iter) = seuilIter
-		self.stepGenerator = stepGenerator(0.99)
-		self.step = 0.15
+		self.stepGenerator = stepGenerator(0.15,0.99)
 		self.cpt = 0
 
 		self.w1 = np.random.randn(config[0],config[1])
@@ -58,36 +57,38 @@ class NLayer:
 			e1=self.activation[1](self.a1)*np.dot(self.weights[-1],eFinal)
 			self.errors.append((e1,eFinal))
 	def retroprop(self):
-		step = self.step+next(self.stepGenerator)
+		step = next(self.stepGenerator)
+		print(step)
 
 		result = []
-		print("self.errors")
-		print(self.errors)
-		print("self.nOutputs")
-		print(self.nOutputs)
+		#i = n° of example
 		for i in range(len(self.errors)):
 			tmp=[]
-			matrix=np.ones(np.shape(self.weights[i]))
+			#j = n° of layer
 			for j in range(len(self.errors[i])):
+				matrix=np.ones(np.shape(self.weights[j]))
+				#k = n° of output
 				for k in range(len(self.nOutputs[i][j])):
+					#l = n° of error
 					for l in range(len(self.errors[i][j])):
-					result.append(self.errors[i][1-j]*self.nOutputs[i][j])
-	
+						matrix[k,l] = self.nOutputs[i][j][k] * self.errors[i][j][l]
+				tmp.append(matrix)
+			result.append(tmp)
+
 		list1 = []	
 		list2 = []	
 		for i in range(len(result)):
-			if i%2 == 0:
-				list1.append(result[i])
-			else:
-				list2.append(result[i])
+			list1.append(result[i][0])
+			list2.append(result[i][1])
 
-		dError_average = [np.sum(list1,axis=0)/len(list1),np.sum(list2,axis=0)/len(list2)]
-		eo = (e,o) = (config[0],config[2])
-		for k in range(len(dError_average)):
-			w=self.weights[k]
-			for i in range(np.shape(w)[1]):
-				for j in range(np.shape(w)[0]):
-					w[j,i]=w[j,i]+dError_average[k][i][j]
+		#we compute the average
+		dError_average1 = step*np.matrix(reduce(lambda x,y: x+y, list1))/len(list1)
+		dError_average2 = step*np.matrix(reduce(lambda x,y: x+y, list2))/len(list2)
+
+		#we apply the error to the weigths
+		self.w1+=dError_average1
+		self.wfinal+=dError_average2
+	
 
 	def getSquaredError(self):
 		self.computeError()
@@ -104,9 +105,9 @@ class NLayer:
 		self.retroprop()
 		self.cpt+=1
 	
-net = NLayer(entrees,(relu,derivRelu),(0.1,1000))
+net = NLayer(entrees,(relu,derivRelu),(0.001,100000))
 for i in net:
-	print(net.getSquaredError())
+	print("squaredError=",net.getSquaredError())
 	#plt.plot(net.getSquaredError())
 
 print(net.forward((0,0)))
