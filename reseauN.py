@@ -22,7 +22,7 @@ def stepDecrease(x,y):
 	while True:
 		yield val*y
 
-config =(2,5,1)
+config =(2,15,1)
 
 class NLayer:
 	def __init__(self,entries,activation,seuilIter,stepGenerator=stepDecrease):
@@ -58,7 +58,6 @@ class NLayer:
 			self.errors.append((e1,eFinal))
 	def retroprop(self):
 		step = next(self.stepGenerator)
-		print(step)
 
 		result = []
 		#i = n° of example
@@ -106,12 +105,13 @@ class NLayer:
 		self.cpt+=1
 	
 net = NLayer(entrees,(relu,derivRelu),(0.001,100000))
+cpt=0
 for i in net:
-	print("squaredError=",net.getSquaredError())
-	#plt.plot(net.getSquaredError())
+	plt.plot(cpt,net.getSquaredError(),'ro')
+	cpt+=1
 
 print(net.forward((0,0)))
 print(net.forward((1,0)))
 print(net.forward((0,1)))
 print(net.forward((1,1)))
-#plt.show()
+plt.show()
