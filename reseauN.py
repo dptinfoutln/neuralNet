@@ -21,14 +21,16 @@ def stepDecrease(x):
 		yield x
 		x *= x
 
-config =(2,5,1)
+config =(2,10,1)
 
 class NLayer:
-	def __init__(self,entries,activation,seuil,stepGenerator=stepDecrease):
+	def __init__(self,entries,activation,seuilIter,stepGenerator=stepDecrease):
 		self.entries = entries
 		self.activation = activation
-		self.seuil = seuil
-		self.stepGenerator = stepGenerator(0.9)
+		(self.seuil,self.iter) = seuilIter
+		self.stepGenerator = stepGenerator(0.99)
+		self.step = 0.15
+		self.cpt = 0
 
 		self.w1 = np.random.rand(config[0],config[1])
 		self.wfinal = np.random.rand(config[1],config[2])
@@ -55,7 +57,7 @@ class NLayer:
 			e1=self.activation[1](self.a1)*np.dot(self.weights[-1],eFinal.transpose())
 			self.errors.append((e1,eFinal))
 	def retroprop(self):
-		step = next(self.stepGenerator)
+		step = self.step+next(self.stepGenerator)
 
 		result = []
 		for i in range(len(self.errors)):
@@ -71,27 +73,15 @@ class NLayer:
 				list2.append(result[i])
 
 		dError_average = [np.sum(list1,axis=0)/len(list1),np.sum(list2,axis=0)/len(list2)]
-		print("dError_average")
-		print(dError_average)
-
-		print("self.weights")
-		print(self.weights)
 		eo = (e,o) = (config[0],config[2])
 		for j in range(len(dError_average)):
 			w=self.weights[j]
 			for i in range(np.shape(w)[1]):
-				print("w")
-				print(w)
-				print("err")
-				print(dError_average[j][i])
 				w[:,i]=w[:,i]+np.ones(np.shape(w)[0])*dError_average[j][i]
 
 	def getSquaredError(self):
 		self.computeError()
-		print(self.errors)
-		self.squaredError = 0.5*np.sum(self.errors[0][1]**2)
-		print("self.squaredError")
-		print(self.squaredError)
+		self.squaredError = 0.5*np.sum(list(map(lambda x : x*x,np.array(self.errors)[:,1])))
 		return self.squaredError
 
 	def __iter__(self):
@@ -99,13 +89,18 @@ class NLayer:
 
 	def __next__(self):
 		self.getSquaredError()
-		if self.squaredError < self.seuil:
+		if self.squaredError < self.seuil or self.cpt > self.iter:
 			raise StopIteration
 		self.retroprop()
+		self.cpt+=1
 	
-net = NLayer(entrees,(relu,derivRelu),0.001)
+net = NLayer(entrees,(relu,derivRelu),(0.1,1000))
 for i in net:
+	print(net.getSquaredError())
 	plt.plot(net.getSquaredError())
 
+print(net.forward((0,0)))
+print(net.forward((1,0)))
 print(net.forward((0,1)))
+print(net.forward((1,1)))
 plt.show()
