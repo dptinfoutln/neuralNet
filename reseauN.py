@@ -2,9 +2,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-entrees = np.matrix(((0,0),(0,1),(1,0),(1,1)))
-sorties = np.matrix((0,1,1,0))
-l2=0
+entrees = np.matrix((((0,0),0),((0,1),1),((1,0),1),((1,1),0)))
 lr=0.1
 error=0
 
@@ -23,59 +21,77 @@ def stepDecrease(x):
 		yield x
 		x *= x
 
-config =(2,3,1)
+config =(2,5,1)
 
 class NLayer:
-	def __init__(self,entries,results,Nnbr,activation,seuil,stepGenerator=stepDecrease):
+	def __init__(self,entries,activation,seuil,stepGenerator=stepDecrease):
 		self.entries = entries
-		self.results = results
 		self.activation = activation
 		self.seuil = seuil
 		self.stepGenerator = stepGenerator(0.9)
 
-		self.w1 = np.random.rand(config[0]+1,config[1])
-		self.wfinal = np.random.rand(config[1]+1,config[2])
+		self.w1 = np.random.rand(config[0],config[1])
+		self.wfinal = np.random.rand(config[1],config[2])
 		self.weights = [self.w1,self.wfinal]
 	
-	def forward(self):
-		self.a1 = np.insert(self.entries,0,1,axis=1)
-		print(self.a1)
-		self.a1 = np.dot(self.a1,self.weights[0])
-		print(self.a1)
+	def forward(self, value):
+		self.a1 = np.dot(value,self.weights[0])
 		self.l1 = self.activation[0](self.a1)
-		self.l1 = np.insert(self.l1,0,1,axis=1)
-		print(self.l1)
 		self.a2 = np.dot(self.l1,self.weights[1])
 		self.layoutOut = (self.a1,self.a2)
-#linear activation for final neurons
+		#linear activation for final neurons, we can keep a2 as is
+		return self.a2
 
 	def computeError(self):
-		self.forward()
+		self.entries=np.random.permutation(self.entries)
+		self.nOutputs = []
 		self.errors = []
-#linear activation for final neurons
-		self.errors.append(self.results-self.a2)
-		print("a1")
-		print(np.shape(self.a1))
-		print("w2*e2")
-		print(np.shape(np.dot(self.weights[-1],self.errors[-1].transpose())))
-		print("w2")
-		print(np.shape(self.wfinal))
-		self.errors.append(self.activation[1](self.a1)*np.dot(self.weights[-1],self.errors[-1].transpose()))
-
+		for values in self.entries:
+			#values.item(0) : input,  values.item(1): value to learn
+			self.forward(values.item(0))
+			self.nOutputs.append((self.l1,self.a2))
+			#linear activation for final neurons
+			eFinal=(values.item(1)-self.a2)
+			e1=self.activation[1](self.a1)*np.dot(self.weights[-1],eFinal.transpose())
+			self.errors.append((e1,eFinal))
 	def retroprop(self):
 		step = next(self.stepGenerator)
-		layerLen = len(self.errors)
-		for i in layerLen:
-			for k in np.shape(l1)[0]:
-				error_avg=0
-				for l in np.shape(l1)[1]:
-					error_avg += step*self.examplaire[l]*self.errors[i].item(k,l)
-				error_avg /= np.shape(l1)[1] 
 
+		result = []
+		for i in range(len(self.errors)):
+			for j in range(len(self.errors[i])):
+				result.append(self.errors[i][j]*self.nOutputs[i][j])
+	
+		list1 = []	
+		list2 = []	
+		for i in range(len(result)):
+			if i%2 == 0:
+				list1.append(result[i])
+			else:
+				list2.append(result[i])
+
+		dError_average = [np.sum(list1,axis=0)/len(list1),np.sum(list2,axis=0)/len(list2)]
+		print("dError_average")
+		print(dError_average)
+
+		print("self.weights")
+		print(self.weights)
+		eo = (e,o) = (config[0],config[2])
+		for j in range(len(dError_average)):
+			w=self.weights[j]
+			for i in range(np.shape(w)[1]):
+				print("w")
+				print(w)
+				print("err")
+				print(dError_average[j][i])
+				w[:,i]=w[:,i]+np.ones(np.shape(w)[0])*dError_average[j][i]
 
 	def getSquaredError(self):
 		self.computeError()
-		self.squaredError = np.sum(self.error**2)
+		print(self.errors)
+		self.squaredError = 0.5*np.sum(self.errors[0][1]**2)
+		print("self.squaredError")
+		print(self.squaredError)
 		return self.squaredError
 
 	def __iter__(self):
@@ -86,12 +102,10 @@ class NLayer:
 		if self.squaredError < self.seuil:
 			raise StopIteration
 		self.retroprop()
-		print("poids")
-		print(self.w1)
-		print("valeurs predites")
-		print(self.l2)
 	
-net = NLayer(entrees[3],np.transpose(sorties),6,(relu,derivRelu),0.1)
+net = NLayer(entrees,(relu,derivRelu),0.001)
 for i in net:
 	plt.plot(net.getSquaredError())
+
+print(net.forward((0,1)))
 plt.show()
