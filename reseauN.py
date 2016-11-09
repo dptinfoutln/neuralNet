@@ -12,7 +12,7 @@ def relu(v):
 
 def derivRelu(v):
 	v[v<0]=0
-	v[v>1]=1
+	v[v>0]=1
 	return v
 
 
