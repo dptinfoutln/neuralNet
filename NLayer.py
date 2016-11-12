@@ -1,11 +1,10 @@
 #!/usr/bin/python3
-import matplotlib.pyplot as plt
 import numpy as np
 from functools import reduce
 from operator import add
 from itertools import product
 
-config =(2,15,1)
+config =(2,100,1)
 
 class NLayer:
 	def __init__(self,entries,activation,seuilIter,stepGenerator):

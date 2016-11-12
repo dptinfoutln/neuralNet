@@ -21,7 +21,7 @@ def stepDecrease(x,y):
 entries = ((0,0),(0,1),(1,0),(1,1))
 expectedValues = (0,1,1,0)
 mappedValues = list(zip(entries, expectedValues))
-net = NL.NLayer(mappedValues,(relu,derivRelu),(0.000001,1000000),stepDecrease(0.15,0.99))
+net = NL.NLayer(mappedValues,(relu,derivRelu),(1e-15,1e15),stepDecrease(0.15,0.99))
 
 cpt=0
 for i in net:
