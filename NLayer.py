@@ -2,10 +2,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from functools import reduce
-
-entrees = np.matrix((((0,0),0),((0,1),1),((1,0),1),((1,1),0)))
-lr=0.1
-error=0
+from operator import add
+from itertools import product
 
 config =(2,15,1)
 
@@ -14,7 +12,7 @@ class NLayer:
 		self.entries = entries
 		self.activation = activation
 		(self.seuil,self.iter) = seuilIter
-		self.stepGenerator = stepGenerator(0.15,0.99)
+		self.stepGenerator = stepGenerator
 		self.cpt = 0
 
 		self.w1 = np.random.randn(config[0],config[1])
@@ -44,34 +42,22 @@ class NLayer:
 	def retroprop(self):
 		step = next(self.stepGenerator)
 
+		#computes deltas of the current layer of the current example
 		result = []
 		#i = n° of example
 		for i in range(len(self.errors)):
 			tmp=[]
-			#j = n° of layer
-			for j in range(len(self.errors[i])):
-				matrix=np.ones(np.shape(self.weights[j]))
-				#k = n° of output
-				for k in range(len(self.nOutputs[i][j])):
-					#l = n° of error
-					for l in range(len(self.errors[i][j])):
-						matrix[k,l] = self.nOutputs[i][j][k] * self.errors[i][j][l]
+			for index,(error,output) in enumerate(zip(self.errors[i],self.nOutputs[i])):
+				matrix=np.array(list(map(lambda x : x[0]*x[1],product(error,output)))).reshape(np.shape(self.weights[index]))
 				tmp.append(matrix)
 			result.append(tmp)
 
-		list1 = []	
-		list2 = []	
-		for i in range(len(result)):
-			list1.append(result[i][0])
-			list2.append(result[i][1])
-
-		#we compute the average
-		dError_average1 = step*np.matrix(reduce(lambda x,y: x+y, list1))/len(list1)
-		dError_average2 = step*np.matrix(reduce(lambda x,y: x+y, list2))/len(list2)
+		#computes the average of deltas for each layer
+		dError_average = [ step*np.matrix(reduce(add, matrices))/len(matrices) for matrices in zip(*result) ]
 
 		#we apply the error to the weigths
-		self.w1+=dError_average1
-		self.wfinal+=dError_average2
+		for w,e in zip(self.weights,dError_average):
+			w+=e
 	
 
 	def getSquaredError(self):

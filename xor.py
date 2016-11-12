@@ -18,17 +18,17 @@ def stepDecrease(x,y):
 	while True:
 		yield val*y
 
-entries = np.matrix((((0,0),0),((0,1),1),((1,0),1),((1,1),0)))
-
-net = NL.NLayer(entries,(relu,derivRelu),(0.001,100000),stepDecrease)
+entries = ((0,0),(0,1),(1,0),(1,1))
+expectedValues = (0,1,1,0)
+mappedValues = list(zip(entries, expectedValues))
+net = NL.NLayer(mappedValues,(relu,derivRelu),(0.000001,1000000),stepDecrease(0.15,0.99))
 
 cpt=0
 for i in net:
 	plt.plot(cpt,net.getSquaredError(),'ro')
 	cpt+=1
 
-print(net.forward((0,0)))
-print(net.forward((1,0)))
-print(net.forward((0,1)))
-print(net.forward((1,1)))
+for e,o in mappedValues:
+	print('entry={0} network answer={1} correct answer={2}'.format(e,net.forward(e),o))
+print('error={0}'.format(net.getSquaredError()))
 plt.show()
