@@ -4,73 +4,81 @@ from functools import reduce
 from operator import add
 from itertools import product
 
-config =(2,100,1)
+config =(2,10,1)
 
 class NLayer:
-	def __init__(self,entries,activation,seuilIter,stepGenerator):
-		self.entries = entries
-		self.activation = activation
-		(self.seuil,self.iter) = seuilIter
-		self.stepGenerator = stepGenerator
-		self.cpt = 0
+	def __init__(self,data,activation,seuilIter,stepGenerator):
+            self.data = data
+            self.activation, self.activGradient = activation
+            (self.seuil,self.iter) = seuilIter
+            self.stepGenerator = stepGenerator
+            self.cpt = 0
+            self.subExLen = 4
 
-		self.w1 = np.random.randn(config[0],config[1])
-		self.wfinal = np.random.rand(config[1],config[2])
-		self.weights = [self.w1,self.wfinal]
-	
+            #weights random initialization
+            configDec = [ (config[i],config[i+1]) for i in range(len(config)-1)]
+            self.weights = []
+            for weightsLayer in configDec:
+                self.weights.append(np.random.randn(*weightsLayer))
+
 	def forward(self, value):
-		self.a1 = np.dot(value,self.weights[0])
-		self.l1 = self.activation[0](self.a1)
-		self.a2 = np.dot(self.l1,self.weights[1])
-		self.layoutOut = (self.a1,self.a2)
-		#linear activation for final neurons, we can keep a2 as is
-		return self.a2
+            self.layerOut = []
+            self.layerActivation = [np.array(value)]
+            for layerIndex,weight in enumerate(self.weights[:-1]):
+                self.layerOut.append(np.dot(self.layerActivation[-1],weight))
+                self.layerActivation.append(self.activation(self.layerOut[layerIndex]))
+            #linear activation for final neurons, we can keep it as is
+            self.layerOut.append(np.dot(self.layerActivation[-1],self.weights[-1]))
+            return self.layerOut[-1] 
 
 	def computeError(self):
-		self.entries=np.random.permutation(self.entries)
-		self.nOutputs = []
-		self.errors = []
-		for values in self.entries:
-			#values.item(0) : input,  values.item(1): value to learn
-			self.forward(values.item(0))
-			self.nOutputs.append((np.array(values.item(0)),self.l1))
-			#linear activation for final neurons
-			eFinal=(values.item(1)-self.a2)
-			e1=self.activation[1](self.a1)*np.dot(self.weights[-1],eFinal)
-			self.errors.append((e1,eFinal))
+            self.data = np.random.permutation(self.data)
+            self.entriesGenerator = (self.data[x:x+self.subExLen] for x in range(0,len(self.data),self.subExLen))
+            for subData in self.entriesGenerator:
+                self.wUpdateData = []
+                self.errors = []
+                for entry,output in subData:
+                    self.forward(entry)
+                    self.wUpdateData.append(self.layerActivation)
+                    #linear activation for final neurons
+                    subErrors = [output-self.layerOut[-1]]
+                    for out,weight in zip(reversed(self.layerOut[:-1]),reversed(self.weights)):
+                        subErrors.append(self.activGradient(out)*np.dot(weight,subErrors[-1]))
+                    self.errors.append(subErrors)
 	def retroprop(self):
-		step = next(self.stepGenerator)
+            step = next(self.stepGenerator)
 
-		#computes deltas of the current layer of the current example
-		result = []
-		#i = n° of example
-		for i in range(len(self.errors)):
-			tmp=[]
-			for index,(error,output) in enumerate(zip(self.errors[i],self.nOutputs[i])):
-				matrix=np.array(list(map(lambda x : x[0]*x[1],product(error,output)))).reshape(np.shape(self.weights[index]))
-				tmp.append(matrix)
-			result.append(tmp)
+            #computes deltas of the current layer of the current example
+            result = []
+            #i = n° of example
+            for i in range(len(self.errors)):
+                    tmp=[]
+                    for index,(error,output) in enumerate(zip(self.errors[i],reversed(self.wUpdateData[i]))):
 
-		#computes the average of deltas for each layer
-		dError_average = [ step*np.matrix(reduce(add, matrices))/len(matrices) for matrices in zip(*result) ]
+                        matrix=np.array(list(map(lambda x : x[0]*x[1],product(error,output)))).reshape(np.shape(tuple(self.weights[len(self.weights)-1-index])))
+                        tmp.append(matrix)
+                    result.append(tmp)
 
-		#we apply the error to the weigths
-		for w,e in zip(self.weights,dError_average):
-			w+=e
-	
+            #computes the average of deltas for each layer
+            dError_average = [ step*np.matrix(reduce(add, matrices))/len(matrices) for matrices in zip(*result) ]
+
+            #we apply the error to the weigths
+            for w,e in zip(reversed(self.weights),dError_average):
+                w+=e
+    
 
 	def getSquaredError(self):
-		self.computeError()
-		self.squaredError = 0.5*np.sum(list(map(lambda x : x*x,np.array(self.errors)[:,1])))
-		return self.squaredError
+            self.squaredError = 0.5*np.sum(list(map(lambda x : x*x,np.array(self.errors)[:,1])))
+            return self.squaredError
 
 	def __iter__(self):
-		return self	
+            return self	
 
 	def __next__(self):
-		self.getSquaredError()
-		if self.squaredError < self.seuil or self.cpt > self.iter:
-			raise StopIteration
-		self.retroprop()
-		self.cpt+=1
+            self.computeError()
+            self.getSquaredError()
+            if self.squaredError < self.seuil or self.cpt > self.iter:
+                    raise StopIteration
+            self.retroprop()
+            self.cpt+=1
 
