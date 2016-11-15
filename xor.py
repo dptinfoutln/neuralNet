@@ -21,7 +21,7 @@ def stepDecrease(x,y):
 entries = ((0,0),(0,1),(1,0),(1,1))
 expectedValues = (0,1,1,0)
 mappedValues = list(zip(entries, expectedValues))
-net = NL.NLayer(mappedValues,(relu,derivRelu),(1e-3,1e8),stepDecrease(0.15,0.99))
+net = NL.NLayer(mappedValues,(2,10,1),(relu,derivRelu),(1e-5,1e8),stepDecrease(0.15,0.99),2)
 
 cpt=0
 for i in net:
@@ -30,5 +30,5 @@ for i in net:
 
 for e,o in mappedValues:
 	print('entry={0} network answer={1} correct answer={2}'.format(e,net.forward(e),o))
-print('error={0}'.format(net.getSquaredError()))
+print('error={0} nbIterations={1}'.format(net.getSquaredError(), net.getNumberIteration()))
 plt.show()
